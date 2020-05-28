@@ -4,7 +4,7 @@ try:
     N = int(input("How many different objects are there (numbers, birthdays, etc.)? "))
     k = int(input("How many objects are you drawing? "))
 except:
-    raise ValueError("Please provide appropriate values (positive integers with objects ).")
+    raise ValueError("Please provide appropriate values (positive integers).")
 
 probln = 0
 if k>N:
