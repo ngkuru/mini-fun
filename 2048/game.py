@@ -35,8 +35,6 @@ def collapse(v, dir):
             posterior.append(0)    
         return posterior[::-1], score
 
-# TODO: add score updates to move functions
-
 def up(board):
     score = 0
     for i in range(4):
@@ -109,4 +107,5 @@ def play():
 
     print(f"Final score: {score}")
 
-
+def state(board):
+    return(tuple(board.view(-1)))
