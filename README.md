@@ -16,3 +16,6 @@ The AI plays the game and uses the experience replay to update every state's val
 
 ## 4. toplacikar
 A game/test including addition and subtraction questions with all variants of signs and parentheses added for confusion.
+
+## 5. basketball
+Create teams and simulate games (single match or tournament) between basketball cards with name, off, def, star values.
