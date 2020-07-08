@@ -19,3 +19,6 @@ A game/test including addition and subtraction questions with all variants of si
 
 ## 5. basketball
 Create teams and simulate games (single match or tournament) between basketball cards with name, off, def, star values.
+
+## 6. assign
+A little script for a linear sum assignment problem.
