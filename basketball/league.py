@@ -119,7 +119,7 @@ class Match:
             # Shot/defense
             if not attempt % 2: shot(attempt % 5)
             else: defend(attempt % 5)
-    
+
     def shoot(self, x):
         if self.home_roster[x].offense > self.away_roster[x].defense:
             self.home_score += 1
@@ -133,6 +133,19 @@ class Match:
             self.commentary.append(f"{self.home_roster[x]} is scored over by {self.away_roster[x]}, the score is {self.home_score} - {self.away_score}")
         else:
             self.commentary.append(f"{self.home_roster[x]} blocks {self.away_roster[x]}, the score is {self.home_score} - {self.away_score}")
+
+    def result(self):
+        if self.home_score > self.away_score:
+            return 1
+        elif self.home_score < self.away_score:
+            return 2
+        else:
+            return 0
+
+    def commentate(self, sleep=1):
+        for comment in self.commentary:
+            print(comment)
+            time.sleep(sleep)
 
 class RoundRobin:
     def __init__(self):
@@ -148,19 +161,19 @@ class RoundRobin:
         self.halves = halves
         self.tiebraker = tiebraker
 
-    def play(self):
+    def generate_fixture(self):
          # prepare teams
         teams = self.teams.copy()
         random.shuffle(teams)
         if len(teams) % 2 == 1:
             teams.append("dummy")
         n = len(teams)
-        
+
         # create fixture
         rnd1 = []
         for wk in range(n-1):
             week = []
-            
+
             if teams[n-1] != "dummy":
                 week.append(Match(teams[wk], teams[n-1], self.halves, self.tiebraker))
             order = teams[wk+1 : n-1] + teams[:wk]
@@ -174,8 +187,73 @@ class RoundRobin:
         if self.rounds == 2:
             for week in rnd1:
                 rnd2.append([Match(game.away, game.home, self.halves, self.tiebraker) for game in week])
-        
+
         self.fixture = rnd1 + rnd2
+        self.position = 0, 0
+
+    def reset(self):
+        for team in self.teams:
+            for key in self.data[team]:
+                self.data[team][key] = 0
+
+        self.position = 0, 0
+
+    def next(self):
+        # Get the game
+        week, game = self.position
+        assert week < len(self.fixture) and game < len(self.fixture[week]), "There is no such game."
+        match = self.fixture[week][game]
+
+        # Add the result
+        if match.result() == 1:
+            self.data[match.home]['w'] += 1
+            self.data[match.away]['l'] += 1
+        elif match.result() == 0:
+            self.data[match.home]['d'] += 1
+            self.data[match.away]['d'] += 1
+        elif match.result() == 2:
+            self.data[match.home]['l'] += 1
+            self.data[match.away]['w'] += 1
+
+        # Add the scores
+        self.data[match.home]["ps"] += match.home_score
+        self.data[match.home]["pc"] += match.away_score
+        self.data[match.away]["ps"] += match.away_score
+        self.data[match.away]["pc"] += match.home_score
+
+        # Calculate points
+        self.data[match.home]["p"] = self.data[match.home]["w"] * 2 + self.data[match.home]["d"]
+        self.data[match.away]["p"] = self.data[match.away]["w"] * 2 + self.data[match.away]["d"]
+
+        # Move position
+        if game == len(self.fixture[week]) - 1:
+            self.position = week + 1, 0
+        else:
+            self.position = week, game + 1
+
+        return match
+
+    def move_to(self, week, game):
+        if (week, game) < self.position:
+            self.reset()
+
+        while self.position != (week, game):
+            self.next()
+
+    def get_table(self):
+        table = self.teams.copy()
+        table.sort(key=lambda x: (self.data[x]["p"], self.data[x]["ps"] - self.data[x]["pc"], self.data[x]["w"], self.data[x]["ps"]), reverse=True)
+        table = [(x, self.data[x]["w"], self.data[x]["d"], self.data[x]["l"], self.data[x]["ps"], self.data[x]["pc"], self.data[x]["p"]) for x in table]
+        return table
+
+    def print_table(self):
+        table = self.get_table()
+        for i, (team, w, d, l, ps, pc, p) in enumerate(table):
+            print(f"{i+1:2d}. {str(team):<25}  {w:2d}  {d:2d}  {l:2d}  {ps:3d}  {pc:3d}  {p:2d}")
+
+    def get_team(self, position):
+        table = self.get_table()
+        return table[position][0]
 
 def load_players(player_data):
     return [Player(*p) for p in player_data]
@@ -188,11 +266,11 @@ def get_captains(player_list):
 
 def build_teams(player_list):
     teams = []
-    history = []
+    commentary = []
 
-    history.append("--------------------")
-    history.append("Welcome to the team lottery!")
-    history.append("--------------------")
+    commentary.append("--------------------")
+    commentary.append("Welcome to the team lottery!")
+    commentary.append("--------------------")
 
     players = get_captains(player_list)
     captains = players[:60]
@@ -203,43 +281,39 @@ def build_teams(player_list):
         new_team.set_captain(captain)
 
         teams.append(new_team)
-        history.append(f"Welcome team {i+1}: {new_team}")
-    history.append("--------------------")
+        commentary.append(f"Welcome team {i+1}: {new_team}")
+    commentary.append("--------------------")
 
     rest = players[60:]
     random.shuffle(rest)
 
     for phase in range(4):
-        history.append(f"Drafting: phase {phase}")
-        history.append("")
+        commentary.append(f"Drafting: phase {phase}")
+        commentary.append("")
 
         for i, team in enumerate(teams):
             player = rest[phase * 60 + i]
             team.add_player(player)
 
-            history.append(f"{team} welcomes: {player}")
-            history.append("")
+            commentary.append(f"{team} welcomes: {player}")
+            commentary.append("")
 
             for player in team.players:
-                history.append(f"{player.name} {player.offense} {player.defense}")
-            history.append("")
-        history.append("--------------------")
-    
-    return teams, history
+                commentary.append(f"{player.name} {player.offense} {player.defense}")
+            commentary.append("")
+        commentary.append("--------------------")
+
+    return teams, commentary
 
 def build_league(team_list):
     league = RoundRobin()
     for team in team_list:
         league.add_team(team)
     league.set_rule()
-    league.play()
+    league.generate_fixture()
     return league
 
 
 players = load_players(player_data)
-teams, history = build_teams(players)
+teams, commentary = build_teams(players)
 league = build_league(teams)
-
-match = league.fixture[0][0]
-for comment in match.commentary:
-    print(comment)
